@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: overtime-tracker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+```
+
+4. Guarda el archivo
+
+---
+
+### **Paso 4: Verificar la Estructura de tu Proyecto**
+
+Tu carpeta debe verse así:
+```
+overtime-tracker/
+├── app.py
+├── requirements.txt       ✅ (ya actualizado)
+├── Procfile              ✅ (SIN .txt)
+├── runtime.txt           ✅ (con python-3.11.0)
+├── render.yaml           ✅ (con la config)
+├── templates/
+│   └── index.html
+└── static/
+    └── style.css
