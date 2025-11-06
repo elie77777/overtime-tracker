@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overtime Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p id="loaderText">Procesando...</p>
+    </div>
+
+    <div class="container">
+        <h1>⏰ Overtime Tracker</h1>
+        
+        <form id="overtimeForm">
+            <div class="form-group">
+                <label>Select Agent</label>
+                <select id="agent" name="agent" required>
+                    {% for agent in agents %}
+                    <option value="{{ agent }}">{{ agent }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+            
+            <h3>From Time</h3>
+            <div class="time-picker">
+                <div class="form-group">
+                    <label>Hour</label>
+                    <select id="from_hour" class="time-input">
+                        {% for h in range(0,24) %}
+                        <option value="{{ h }}" {% if h == 18 %}selected{% endif %}>{{ '%02d' % h }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Minute</label>
+                    <select id="from_minute" class="time-input">
+                        {% for m in [0,15,30,45] %}
+                        <option value="{{ m }}">{{ '%02d' % m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <h3>To Time</h3>
+            <div class="time-picker">
+                <div class="form-group">
+                    <label>Hour</label>
+                    <select id="to_hour" class="time-input">
+                        {% for h in range(0,24) %}
+                        <option value="{{ h }}" {% if h == 21 %}selected{% endif %}>{{ '%02d' % h }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Minute</label>
+                    <select id="to_minute" class="time-input">
+                        {% for m in [0,15,30,45] %}
+                        <option value="{{ m }}">{{ '%02d' % m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="preview">
+                <strong>Preview Total Time:</strong> <span id="previewTime">3h 0m</span>
+            </div>
+            
+            <div class="form-group">
+                <label>Reason</label>
+                <input type="text" id="reason" value="Scheduled OT">
+            </div>
+            
+            <div class="form-group">
+                <label>+20K Bonus?</label>
+                <select id="bonus">
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                </select>
+            </div>
+            
+            <div class="form-group checkbox-group">
+                <label><input type="checkbox" id="holiday"> Holiday?</label>
+                <label><input type="checkbox" id="overnight"> Overnight?</label>
+            </div>
+            
+            <button type="submit" class="submit-btn">Submit</button>
+        </form>
+        
+        <div id="message" class="message"></div>
+        
+        <hr>
+        
+        <h2>📊 Total Monthly Time</h2>
+        
+        <div class="form-group">
+            <label>Select Time Frame</label>
+            <select id="period">
+                <option>Del 06 de Octubre al 02 de Noviembre</option>
+                <option>Del 03 de Noviembre al 07 de Diciembre</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Agent Name (Filter)</label>
+            <select id="filter_agent">
+                {% for agent in agents %}
+                <option value="{{ agent }}">{{ agent }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button onclick="showTotal()" class="submit-btn">Show Total</button>
+        
+        <div id="totalsResult"></div>
+    </div>
+    
+    <script>
+        // Set today's date
+        document.getElementById('date').valueAsDate = new Date();
+
+        function updatePreview() {
+            const fromH = parseInt(document.getElementById('from_hour').value);
+            const fromM = parseInt(document.getElementById('from_minute').value);
+            const toH = parseInt(document.getElementById('to_hour').value);
+            const toM = parseInt(document.getElementById('to_minute').value);
+            
+            const totalMinutes = (toH * 60 + toM) - (fromH * 60 + fromM);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            document.getElementById('previewTime').textContent = `${hours}h ${minutes}m`;
+        }
+
+        document.querySelectorAll('#from_hour,#from_minute,#to_hour,#to_minute').forEach(el => {
+            el.addEventListener('change', updatePreview);
+        });
+
+        function showLoader(text = 'Procesando...') {
+            document.getElementById('loaderText').innerText = text;
+            document.getElementById('loader').style.display = 'flex';
+        }
+
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        document.getElementById('overtimeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoader('Guardando...');
+            
+            const data = {
+                agent: document.getElementById('agent').value,
+                date: document.getElementById('date').value,
+                from_hour: document.getElementById('from_hour').value,
+                from_minute: document.getElementById('from_minute').value,
+                to_hour: document.getElementById('to_hour').value,
+                to_minute: document.getElementById('to_minute').value,
+                reason: document.getElementById('reason').value,
+                bonus: document.getElementById('bonus').value,
+                holiday: document.getElementById('holiday').checked,
+                overnight: document.getElementById('overnight').checked
+            };
+            
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const msgDiv = document.getElementById('message');
+                msgDiv.style.display = 'block';
+                
+                if (result.success) {
+                    msgDiv.className = 'message success';
+                    msgDiv.textContent = '✅ ' + result.message;
+                } else {
+                    msgDiv.className = 'message error';
+                    msgDiv.textContent = '❌ ' + result.message;
+                }
+                
+                setTimeout(() => msgDiv.style.display = 'none', 3000);
+            } catch (error) {
+                const msgDiv = document.getElementById('message');
+                msgDiv.style.display = 'block';
+                msgDiv.className = 'message error';
+                msgDiv.textContent = '❌ Error: ' + error.message;
+            } finally {
+                hideLoader();
+            }
+        });
+
+        async function showTotal() {
+            showLoader('Buscando...');
+            
+            const data = {
+                period: document.getElementById('period').value,
+                agent: document.getElementById('filter_agent').value
+            };
+            
+            try {
+                const response = await fetch('/get_totals', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('totalsResult');
+                
+                if (result.success) {
+                    let html = `<h3>Total Time for ${data.agent}: ${result.total_hours}h ${result.total_minutes}m</h3>`;
+                    
+                    if (result.rows.length > 0) {
+                        html += '<table><thead><tr>';
+                        const headers = Object.keys(result.rows[0]);
+                        headers.forEach(h => html += `<th>${h}</th>`);
+                        html += '</tr></thead><tbody>';
+                        result.rows.forEach(row => {
+                            html += '<tr>';
+                            headers.forEach(h => html += `<td>${row[h]}</td>`);
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                    } else {
+                        html += `<p>No records found for ${data.agent} for that period.</p>`;
+                    }
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">Error: ${result.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('totalsResult').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            } finally {
+                hideLoader();
+            }
+        }
+    </script>
+</body>
+</html>
